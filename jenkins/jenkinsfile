@@ -1,6 +1,4 @@
 pipeline {
-    agent any
-
     stages {
         stage('Unit Tests - Backend') {
             agent {
@@ -35,6 +33,9 @@ pipeline {
                             npm ci
                             npm test
                         '''
-                }
+                     }
+                 }
+             }
+          }
     }
 }
