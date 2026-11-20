@@ -5,9 +5,17 @@ pipeline {
         stage('Unit Tests - Backend') {
             agent {
                 docker {
-                    image 'snakee/golang-junit:1.21'
+                    image 'golang:1.21'
                     reuseNode true
                 }
+            }
+            environment {
+                // Inside this container $HOME is "/", and the agent runs as uid 1000,
+                // which cannot write to the filesystem root. Point Go's caches at
+                // /tmp (world-writable) so the build/module caches can be created.
+                HOME    = '/tmp'
+                GOCACHE = '/tmp/go-build'
+                GOPATH  = '/tmp/go'
             }
             steps {
                 dir('bugtracker-backend') {
