@@ -19,7 +19,15 @@ pipeline {
             }
             steps {
                 dir('bugtracker-backend') {
-                    sh 'go test -v ./... 2>&1 | go-junit-report > test-resuls.xml'
+                    sh '''
+                        # Install the JUnit converter into $GOPATH/bin and add it to PATH.
+                        export PATH="$GOPATH/bin:$PATH"
+                        go install github.com/jstemmer/go-junit-report/v2@latest
+                        # Convert `go test -v` output to JUnit XML at the path the
+                        # `junit` post-step expects. -set-exit-code makes the stage
+                        # fail when tests fail (a plain pipe would mask that).
+                        go test -v ./... 2>&1 | go-junit-report -set-exit-code > test-results.xml
+                    '''
 
                 }
             }
