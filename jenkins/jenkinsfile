@@ -84,14 +84,19 @@ pipeline {
         stage('Launch Application') {
             agent { 
                 docker {
-                    image 'docker:29.10.1'
+                    image 'docker:29-cli'
                     reuseNode true
                     args '-v /var/run/docker.sock:/var/run/docker.sock -u 0'
                 }
             }
+            environment {
+                // Talk to the dind daemon through the socket mounted above, instead of
+                // the controller's tcp://docker:2376, which is not resolvable here.
+                DOCKER_HOST = 'unix:///var/run/docker.sock'
+            }
             steps {
                 sh '''
-                    docker-compose up --build -d
+                    docker compose up --build -d
                 '''
             }
                 
