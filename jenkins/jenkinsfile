@@ -45,7 +45,7 @@ pipeline {
                     publishHTML(target: [
                         reportDir: 'bugtracker-backend/reports',
                         reportFiles: 'coverage.html',
-                        reportName: 'Coverage Report'
+                        reportName: 'Backend Coverage Report'
                     ])
                 }
             }
@@ -74,7 +74,7 @@ pipeline {
                     publishtHTML(target: [
                         reportDir: 'bugtracker-frontend/reports/coverage',
                         reportFiles: 'coverage.html',
-                        reportName: 'Coverage Report'
+                        reportName: 'Frontend Coverage Report'
                     ])
                 }
             }
