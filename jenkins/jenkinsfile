@@ -62,6 +62,14 @@ pipeline {
                     sh '''
                         npm ci
                         npm test
+                        mkdir -p reports
+                        mv coverage reports/
+                        
+                        publishtHTML(target: [
+                        reportDir: 'bugtracker-frontend/reports/coverage',
+                        reportFiles: 'coverage.html',
+                        reportName: 'Coverage Report'
+                        ])
                     '''
                 }
             }
