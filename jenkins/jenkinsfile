@@ -27,6 +27,14 @@ pipeline {
                         # `junit` post-step expects. -set-exit-code makes the stage
                         # fail when tests fail (a plain pipe would mask that).
                         go test -v ./... 2>&1 | go-junit-report -set-exit-code > test-results.xml
+
+                        # generate a coverage report
+                        go test -coverprofile=coverage.out -covermode=atomic ./...
+                        go tool cover -html=coverage.out -o coverage.html
+
+                        mkdir -p reports
+                        mv coverage.html reports/
+
                     '''
 
                 }
@@ -34,6 +42,11 @@ pipeline {
             post {
                 always {
                     junit 'bugtracker-backend/test-results.xml'
+                    publishHTML target: [
+                        reportDir: 'bugtracker-backend/reports',
+                        reportFiles: 'coverage.html'
+                        reportName: 'Coverage Report'
+                    ]
                 }
             }
         }
