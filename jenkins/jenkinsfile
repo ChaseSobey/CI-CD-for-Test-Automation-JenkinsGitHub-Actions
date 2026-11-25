@@ -106,9 +106,7 @@ pipeline {
                 'DOCKER_TLS_VERIFY=1',
                 'DOCKER_CERT_PATH=/certs/client'
             ]) {
-                if (fileExists('docker-compose.yml')) {
-                    sh 'docker compose down --remove-orphans || true'
-                }
+                sh 'docker compose down --remove-orphans || true'
             }
             cleanWs()
         }
