@@ -82,28 +82,34 @@ pipeline {
         }
         
         stage('Launch Application') {
-            agent { 
-                docker {
-                    image 'docker:27.5.1'
-                    reuseNode true
-                    args '-v /var/run/docker.sock:/var/run/docker.sock -u 0'
-                }
-            }
+            // Run on the built-in node (the controller): it already has the Docker
+            // CLI, Compose v5.8, and a working TLS connection to the dind daemon.
+            // A `docker` agent for this stage hangs Jenkins' step launch, so avoid it.
             environment {
-                // Talk to the dind daemon through the socket mounted above, instead of
-                // the controller's tcp://docker:2376, which is not resolvable here.
-                DOCKER_HOST = 'unix:///var/run/docker.sock'
+                DOCKER_HOST       = 'tcp://docker:2376'
+                DOCKER_TLS_VERIFY = '1'
+                DOCKER_CERT_PATH  = '/certs/client'
             }
             steps {
-                sh '''
-                    docker compose up --build -d
-                '''
+                sh 'docker compose up --build --wait'
             }
-                
         }
     }
     post {
         always {
+            // Tear the app down here, not in a stage: a stage after the tests would be
+            // skipped if any test stage fails - exactly when containers get orphaned on
+            // dind. This runs on every build result, using the compose file before
+            // cleanWs removes the workspace.
+            withEnv([
+                'DOCKER_HOST=tcp://docker:2376',
+                'DOCKER_TLS_VERIFY=1',
+                'DOCKER_CERT_PATH=/certs/client'
+            ]) {
+                if (fileExists('docker-compose.yml')) {
+                    sh 'docker compose down --remove-orphans || true'
+                }
+            }
             cleanWs()
         }
     }
