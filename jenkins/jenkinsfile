@@ -94,6 +94,48 @@ pipeline {
                 sh 'docker compose up --build --wait'
             }
         }
+
+        stage('API Tests') {
+            agent {
+                docker {
+                    image 'mcr.microsoft.com/playwright:v1.50.0-jammy'
+                    reuseNode true
+                    // The plugin already runs the container as uid 1000 (the workspace
+                    // owner). Do NOT add '-u 0': root-owned files break cleanWs/junit and
+                    // can reproduce the docker-agent step-launch hang.
+                    args '--network=host'
+                }
+            }
+            environment {
+                // We run as uid 1000 (the plugin default), but the Playwright image's HOME
+                // belongs to pwuser, so npm can't write its cache there. Point it at /tmp.
+                HOME             = '/tmp'
+                npm_config_cache = '/tmp/.npm'
+            }
+            steps {
+                dir('tests-api') {
+                    // Install first so npx resolves wait-port and playwright from the local
+                    // node_modules instead of prompting to download them in CI.
+                    sh 'npm ci'
+                    // Then wait for the app's health endpoint (it should already be up from
+                    // the Launch stage's --wait, so this is a cheap safeguard).
+                    sh 'npx wait-port http://localhost:8080/api/health -t 30000'
+                    sh 'npx playwright test'
+                }
+            }
+            post {
+                always {
+                    // Publish the reports playwright.config.ts already generates.
+                    junit testResults: 'tests-api/test-results/results.xml', allowEmptyResults: true
+                    publishHTML(target: [
+                        allowMissing: true,
+                        reportDir: 'tests-api/playwright-report',
+                        reportFiles: 'index.html',
+                        reportName: 'API Test Report'
+                    ])
+                }
+            }
+        }
     }
     post {
         always {
