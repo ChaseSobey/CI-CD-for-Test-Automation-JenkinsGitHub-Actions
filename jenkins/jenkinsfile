@@ -177,15 +177,29 @@ pipeline {
         stage('Performance Tests') {
             agent {
                 docker {
-                    image: grafana/k6:latest
-                    reuseNode: true
+                    // The k6 image's ENTRYPOINT is `k6`; clear it so Jenkins can start the
+                    // container with `cat`, then run k6 via docker exec. --network=host
+                    // reaches the app via localhost (ports are published on the dind host).
+                    image 'grafana/k6:latest'
+                    reuseNode true
                     args '--network=host -u root --entrypoint=""'
                 }
             }
             steps {
                 dir('tests-perf') {
-                    sh 'npm ci'
+                    // tests-perf has no package.json; just run the k6 script.
                     sh 'k6 run script.js'
+                }
+            }
+            post {
+                always {
+                    // script.js writes perf-results.html via its handleSummary().
+                    publishHTML(target: [
+                        allowMissing: true,
+                        reportDir: 'tests-perf',
+                        reportFiles: 'perf-results.html',
+                        reportName: 'Performance Test Report'
+                    ])
                 }
             }
         }
