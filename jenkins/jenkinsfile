@@ -142,22 +142,37 @@ pipeline {
                 docker {
                     image 'mcr.microsoft.com/playwright:v1.50.0-jammy'
                     reuseNode true
-                    // The plugin already runs the container as uid 1000 (the workspace
-                    // owner). Do NOT add '-u 0': root-owned files break cleanWs/junit and
-                    // can reproduce the docker-agent step-launch hang.
-                    args '--network=host'
+                    // Browser tests need a large enough /dev/shm (--ipc=host) or Chromium
+                    // crashes. --network=host reaches the app via localhost (ports are
+                    // published on the dind host).
+                    args '--network=host --ipc=host'
                 }
             }
             environment {
-                // We run as uid 1000 (the plugin default), but the Playwright image's HOME
-                // belongs to pwuser, so npm can't write its cache there. Point it at /tmp.
+                // Run as uid 1000 (the plugin default). Writable npm cache, and CI=true so
+                // playwright.config.ts runs headless (there's no display in the container).
                 HOME             = '/tmp'
                 npm_config_cache = '/tmp/.npm'
+                CI               = 'true'
             }
             steps {
-                sh 'npm ci'
-                sh 'npx playwright test'
+                dir('tests-e2e') {
+                    sh 'npm ci'
+                    sh 'npx playwright test'
+                }
             }
+            post {
+                always {
+                    junit testResults: 'tests-e2e/test-results/results.xml', allowEmptyResults: true
+                    publishHTML(target: [
+                        allowMissing: true,
+                        reportDir: 'tests-e2e/playwright-report',
+                        reportFiles: 'index.html',
+                        reportName: 'E2E Test Report'
+                    ])
+                }
+            }
+        }
     }
     post {
         always {
